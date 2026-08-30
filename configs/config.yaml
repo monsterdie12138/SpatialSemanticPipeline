@@ -1,0 +1,136 @@
+# 默认配置。所有相对路径均以项目根目录为基准，可直接编辑本文件。
+paths:
+  # cache 和 metadata 仅在运行期间存在；完整工作流成功后会自动删除。
+  cache_root: cache
+  metadata_root: metadata
+  output_root: output
+  sources_file: input/sources.txt
+
+# 各阶段只依赖统一接口。替换工具时注册新的 provider，并在这里切换名称；
+# 默认值对应原始管线使用的 TransNetV2、VGGT-Omega 和兼容 OpenAI/Gemini 的 VLM。
+providers:
+  scene_detector: transnet_v2
+  pose_estimator: vggt_omega
+  semantic_labeler: openai_compatible
+
+# 下载
+# 使用 yt-dlp 直接下载一次；失败立即退出，不切换节点、不重试。
+youtube_download_height: 480
+youtube_download_fps: 30
+# auto 保留管线原有的格式优先级；高级用户也可以填写 yt-dlp format selector。
+youtube_format: auto
+youtube_js_runtimes:
+  - "node"
+youtube_write_description: true
+youtube_write_thumbnail: true
+download_rollback_on_failure: true
+min_free_disk_gb: 50
+disk_check_interval_sec: 300
+
+# 场景检测：检测镜头切换时间点，得到连续场景片段。
+transnetv2_path: tools/TransNetV2/inference-pytorch
+scene_detection_height: 480
+scene_detection_fps: original
+scene_detection_threshold: 0.5
+scene_cut_dedup_sec: 0.5
+scene_min_sec: 60.0
+
+# 视频切片
+# 统一切片准备：先生成 480p/1fps/noaudio sampled view，再切两套 chunk。
+# 一套是 VGGT 使用的带重叠临时 chunk；一套是 VLM/最终输出使用的无重叠 chunk。
+sampled_height: 480
+sampled_fps: 1
+chunk_duration_sec: 60
+# 只有达到该时长的完整切片才进行语义标注；默认与 chunk_duration_sec 相同。
+full_chunk_duration_sec: 60
+vggt_chunk_frames: 60
+vggt_overlap_frames: 5
+chunk_split_workers: 4
+
+# VGGT 轨迹估计：读取切片阶段生成的带重叠临时 chunk。
+vggt_tool_root: tools/VGGT-Omega
+vggt_checkpoint: tools/VGGT-Omega/checkpoints/VGGT-Omega-1B-512/model.pt
+vggt:
+  image_resolution: 512
+  enable_alignment: false
+
+# 轨迹质量判断：判断每个 pose chunk 是 good 还是 bad。
+judge:
+  # 基础有效性
+  min_poses: 5
+  quaternion_norm_tolerance: 0.2
+  reject_no_movement: 0
+  reject_non_positive_duration: 0
+
+  # 位移统计
+  positive_step_epsilon: 1.0e-12
+  iqr_epsilon: 1.0e-12
+
+  # 相邻位移跳变过滤
+  jump_median_step_multiplier: 5.0
+
+  # 静止过滤；当前阈值等价于关闭。
+  static_step_median_multiplier: 0.05
+  static_time_ratio_limit: 1.01
+
+  # 抖动过滤
+  jitter_median_step_multiplier: 1.8
+  jitter_iqr_multiplier: 0.0
+  jitter_ratio_limit: 0.2
+
+  # 大转角过滤；当前比例阈值等价于关闭。
+  min_turn_checks: 5
+  sharp_turn_cosine_limit: -0.5
+  sharp_turn_ratio_limit: 1.01
+
+  # 反向位移过滤；当前比例阈值等价于关闭。
+  reversal_cosine_limit: -0.85
+  reversal_ratio_limit: 1.01
+
+# 导航提示提取：只处理 judge=good 且达到完整切片时长的轨迹。
+hint:
+  overlap_frames: 5
+  min_used_poses: 60
+  min_segment_sec: 3.0
+  stop_speed_ratio: 0.15
+  slow_speed_ratio: 0.55
+  turn_rate_deg: 10.0
+  min_turn_deg: 50.0
+  turn_window_sec: 24.0
+  turn_step_sec: 4.0
+  turn_core_ratio: 0.30
+  max_turn_sec: 12.0
+  min_stop_sec: 4.0
+  uturn_deg: 120.0
+  # positive 表示正偏航为左转；若模型坐标系相反可改为 negative。
+  left_sign: positive
+
+# VLM 语义打标，单个视频内部按 vlm_workers 并行。
+model: gemini-3.1-flash-lite
+base_url: https://api.openlux.ai/v1
+api_key_env: VLM_API_KEY
+vlm_workers: 16
+vlm_retry_attempts: 8
+vlm_retry_wait_sec: 5
+temperature: 0.2
+max_tokens: 4096
+vlm_input_mode: video
+api_version: v1beta
+vlm_frame_limit: 60
+vlm_frame_jpeg_quality: 3
+vlm_timeout_sec: 180
+prompt_file: prompts/semantic_with_hint.txt
+prompt_without_hint_file: prompts/semantic_without_hint.txt
+
+# 本地输出
+# 最终文件直接写入 output，chunk 以未压缩的 MP4 视频形式保存。
+
+# 控制下载、GPU 阶段、非 GPU 后处理阶段和最终输出的并发数。
+# preferred_gpu_ids 表示优先使用的 GPU；这些卡都忙时，会使用其他空闲 GPU。
+# max_gpu_devices 表示 GPU 阶段最大并发数，程序上限为 4。
+# postprocess_workers=1 表示视频级后处理串行；VLM 请求仍按 vlm_workers 并行。
+download_workers: 1
+preferred_gpu_ids: "1,2,3,4"
+max_gpu_devices: 4
+postprocess_workers: 1
+output_workers: 1

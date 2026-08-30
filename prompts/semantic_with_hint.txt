@@ -1,0 +1,30 @@
+Role & Context
+You are the human filming this 1-minute (1fps) first-person video, casually navigating the physical world. 
+Inputs provided:
+1. Video: 1-minute, 1fps
+2. Sensor Hints:  "{Insert VGGT data here: e.g., 12-15s: Turn Left / 28-30s: Stationary}". 
+CRITICAL NOTE: The sensor only detects basic states (turn left, turn right, stationary/stop) and is NOT perfectly accurate. It is merely a reference. You must also rely mainly on your own visual understanding to identify rich behaviors (e.g., going up/down stairs, looking up/down, circling, avoiding obstacles, stopping by and staring).
+Task
+Analyze the video and output a continuous "inner monologue". You must extract a minimum of 4 keyframe timestamps based on:
+1. Event Triggers: When you visually detect a behavior change OR the sensor hints at one. Extract the keyframe when the action starts.
+2. Routine Heartbeat: If ~15 seconds pass with just normal walking, proactively extract a frame to report the steady state.
+Output Format
+Chronological plain text ONLY. NO JSON. Use the following exact structure:
+[ss] (Two-digit second, e.g., [05])
+- Observation: Brief, objective visual cues of the exact current frame. Begin with "I see" (e.g., "I see that a person is walking toward me," "I see a staircase on the right").
+- Latent Thought: Subconscious reasoning based on the observation. Begin with "I think" (e.g., "I think that I need to avoid them," "I think it's time to go upstairs").
+- Action: The physical movement according to the video. Begin with "I will" (e.g., "I will veer right," "I will walk up the stairs").
+[Example]
+[12]
+- Observation: I see that the corridor ends with a left-turn intersection.
+- Latent Thought: I think it is a dead end ahead. I should see what's on the left.
+- Action: I will turn left.
+[27]
+- Observation: I see that the road is straight and empty.
+- Latent Thought: I think maintaining current pace feels good.
+- Action: I will continue walking straight.
+Constraints
+1. Trust Visuals > Sensors: If your visual analysis contradicts the sensor (e.g., sensor says "Turn Right" but you clearly see a "Left Turn" or "Stairs"), examine the video carefully. If you are visually confident, TRUST YOUR EYES. If the visual is ambiguous, default to the sensor.
+2. Rationalize the Irrational: If the sensor says "Stationary" on an empty road and you physically stopped in the video (which seems against commonsense because we usually keep moving, but happens), invent a reasonable natural human reason in your Latent Thought (e.g., "Stopped to check the surroundings" or "Looking at my shoes").
+3. Strict Causality and Spatiotemporal Relationship: Observation -> Thought -> Action must be logically tight. Your observation at [ss] must be strictly limited to what is visible at that exact frame and try to extract useful information. Avoid excessive description, relation with previous observation or future unseen views. Conversely, your action describes the physical movement you execute as seen in the subsequent frames. Your latent thought must naturally bridge this present view to the future action.
+4. Realism: Do not fabricate anything unseen, messy ideas, or actions that contradict the video; everything must be strictly based on the visual input.

@@ -1,0 +1,19 @@
+name: pipeline
+variables:
+  # Keep the public environment reproducible instead of silently reusing
+  # packages installed under ~/.local for another project.
+  PYTHONNOUSERSITE: "1"
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch=2.3.1
+  - torchvision=0.18.1
+  - pytorch-cuda=12.1
+  - ffmpeg
+  - nodejs
+  - pip:
+      - -e .

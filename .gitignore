@@ -1,0 +1,32 @@
+# Secrets and machine-local configuration
+.env
+
+# Runtime state and generated output
+cache/
+metadata/
+output/
+logs/
+
+# Large model files (download separately)
+tools/VGGT-Omega/checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Third-party source trees (created by scripts/setup_third_party.sh)
+/tools/TransNetV2/
+/tools/VGGT-Omega/
+
+# Python/editor artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.idea/
+.vscode/
+.DS_Store
